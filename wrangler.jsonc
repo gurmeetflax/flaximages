@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flaximages",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-04-28",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  // keep_vars preserves env vars and secrets that were set via the
+  // Cloudflare dashboard. Without this, deploys would remove them.
+  "keep_vars": true,
+  "observability": {
+    "enabled": true
+  }
+}
