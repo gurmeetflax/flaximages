@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PortalLayout from '@/components/PortalLayout';
 import ImageCard from '@/components/ImageCard';
@@ -8,6 +8,14 @@ import Lightbox from '@/components/Lightbox';
 import { OUTLETS, CHANNELS } from '@/lib/config';
 
 export default function ImagesPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#9e9d99', fontSize: 13 }}>Loading...</div>}>
+      <ImagesPageInner />
+    </Suspense>
+  );
+}
+
+function ImagesPageInner() {
   const params = useSearchParams();
   const [images, setImages] = useState([]);
   const [reviews, setReviews] = useState({});
