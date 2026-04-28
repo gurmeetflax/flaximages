@@ -12,7 +12,7 @@
     "@aws-sdk/s3-request-presigner": "^3.540.0",
     "@supabase/supabase-js": "^2.43.0",
     "@slack/web-api": "^7.0.2",
-    "next": "14.2.3",
+    "next": "^14.2.35",
     "react": "^18",
     "react-dom": "^18"
   },
