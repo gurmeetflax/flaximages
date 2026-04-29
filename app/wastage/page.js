@@ -61,6 +61,14 @@ export default function WastagePage() {
     byOutlet[img.outlet].push(img);
   }
 
+  // Per-outlet flagged counts
+  const flaggedByOutlet = {};
+  for (const img of images) {
+    if (reviews[img.key]?.status === 'flagged') {
+      flaggedByOutlet[img.outlet] = (flaggedByOutlet[img.outlet] || 0) + 1;
+    }
+  }
+
   return (
     <PortalLayout>
       <div>
@@ -69,7 +77,7 @@ export default function WastagePage() {
           <div style={{ marginLeft: 'auto', fontSize: 13, color: '#9e9d99' }}>{loading ? 'Loading...' : `${images.length} images`}</div>
         </div>
 
-        <KPIBar channel="wastage" data={kpiData} outlets={OUTLETS} />
+        <KPIBar channel="wastage" data={kpiData} flagged={flaggedByOutlet} outlets={OUTLETS} />
 
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#9e9d99', fontSize: 13 }}>Loading wastage images...</div>
@@ -97,7 +105,6 @@ export default function WastagePage() {
                         key={img.key}
                         image={img}
                         review={reviews[img.key]}
-                        onReview={handleReview}
                         onClick={setLightbox}
                       />
                     ))}

@@ -1,11 +1,31 @@
 'use client';
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useMemo, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PortalLayout from '@/components/PortalLayout';
 import ImageCard from '@/components/ImageCard';
 import KPIBar from '@/components/KPIBar';
 import Lightbox from '@/components/Lightbox';
 import { OUTLETS, CHANNELS } from '@/lib/config';
+
+// Week starts Monday. Returns ISO date (YYYY-MM-DD) of the week's Monday.
+function getWeekStart(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+
+function formatWeekRange(weekStart) {
+  const start = new Date(weekStart + 'T00:00:00');
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const sameYear = start.getFullYear() === end.getFullYear();
+  return sameYear
+    ? `${fmt(start)} – ${fmt(end)}, ${end.getFullYear()}`
+    : `${fmt(start)}, ${start.getFullYear()} – ${fmt(end)}, ${end.getFullYear()}`;
+}
 
 export default function ImagesPage() {
   return (
@@ -86,6 +106,39 @@ function ImagesPageInner() {
 
   const displayChannels = channel ? CHANNELS.filter(c => c.id === channel) : CHANNELS;
 
+  // Per-outlet flagged counts (for KPI cards).
+  const flaggedByOutlet = useMemo(() => {
+    const out = {};
+    for (const img of images) {
+      const r = reviews[img.key];
+      if (r?.status === 'flagged') {
+        out[img.outlet] = (out[img.outlet] || 0) + 1;
+      }
+    }
+    return out;
+  }, [images, reviews]);
+
+  // Group images into weekly buckets (Mon–Sun), newest week first.
+  // Within each week, newest images first.
+  const weekGroups = useMemo(() => {
+    const groups = new Map();
+    for (const img of images) {
+      if (!img.date) continue;
+      const week = getWeekStart(img.date);
+      if (!groups.has(week)) groups.set(week, []);
+      groups.get(week).push(img);
+    }
+    const sorted = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
+    for (const [, arr] of sorted) {
+      arr.sort((a, b) => {
+        const d = (b.date || '').localeCompare(a.date || '');
+        if (d !== 0) return d;
+        return (b.time || '').localeCompare(a.time || '');
+      });
+    }
+    return sorted;
+  }, [images]);
+
   return (
     <PortalLayout>
       <div style={{ padding: '0 0 20px' }}>
@@ -106,6 +159,7 @@ function ImagesPageInner() {
         <KPIBar
           channel={channel || 'all'}
           data={kpiData}
+          flagged={flaggedByOutlet}
           outlets={OUTLETS}
         />
 
@@ -115,16 +169,40 @@ function ImagesPageInner() {
         ) : images.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#9e9d99', fontSize: 13 }}>No images found for selected filters.</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, padding: '16px' }}>
-            {images.map(img => (
-              <ImageCard
-                key={img.key}
-                image={img}
-                review={reviews[img.key]}
-                onReview={handleReview}
-                onClick={setLightbox}
-              />
-            ))}
+          <div style={{ padding: '16px' }}>
+            {weekGroups.map(([weekStart, weekImages]) => {
+              const flaggedInWeek = weekImages.filter(i => reviews[i.key]?.status === 'flagged').length;
+              return (
+                <section key={weekStart} style={{ marginBottom: 28 }}>
+                  <div style={{
+                    position: 'sticky', top: 0, zIndex: 5,
+                    background: 'rgba(248,247,244,0.92)', backdropFilter: 'blur(6px)',
+                    padding: '8px 4px 10px',
+                    borderBottom: '0.5px solid rgba(0,0,0,0.06)',
+                    marginBottom: 12,
+                    display: 'flex', alignItems: 'baseline', gap: 10,
+                  }}>
+                    <div style={{ fontSize: 14, fontWeight: 500 }}>{formatWeekRange(weekStart)}</div>
+                    <div style={{ fontSize: 11, color: '#9e9d99' }}>{weekImages.length} {weekImages.length === 1 ? 'image' : 'images'}</div>
+                    {flaggedInWeek > 0 && (
+                      <span style={{ background: '#FCEBEB', color: '#A32D2D', padding: '1px 8px', borderRadius: 99, fontSize: 11, fontWeight: 500 }}>
+                        {flaggedInWeek} flagged
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                    {weekImages.map(img => (
+                      <ImageCard
+                        key={img.key}
+                        image={img}
+                        review={reviews[img.key]}
+                        onClick={setLightbox}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
       </div>
