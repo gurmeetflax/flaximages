@@ -15,6 +15,14 @@ export default function ImagesPage() {
   );
 }
 
+const DEFAULT_CHANNEL = 'dispatchimages';
+const todayStr = () => new Date().toISOString().split('T')[0];
+const daysAgoStr = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+};
+
 function ImagesPageInner() {
   const params = useSearchParams();
   const [images, setImages] = useState([]);
@@ -23,20 +31,24 @@ function ImagesPageInner() {
   const [lightbox, setLightbox] = useState(null);
   const [kpiData, setKpiData] = useState({});
 
-  const channel = params.get('channel') || '';
+  // channel: null in URL → default to dispatchimages; '' → all channels; else → specific
+  const channelRaw = params.get('channel');
+  const channel = channelRaw === null ? DEFAULT_CHANNEL : channelRaw;
   const outlet = params.get('outlet') || '';
-  const date = params.get('date') || new Date().toISOString().split('T')[0];
+  const dateFrom = params.get('date_from') || daysAgoStr(7);
+  const dateTo = params.get('date_to') || todayStr();
 
   const load = useCallback(async () => {
     setLoading(true);
     const qs = new URLSearchParams();
     if (channel) qs.set('channel', channel);
     if (outlet) qs.set('outlet', outlet);
-    if (date) qs.set('date', date);
+    qs.set('date_from', dateFrom);
+    qs.set('date_to', dateTo);
 
     const [imgRes, revRes] = await Promise.all([
       fetch(`/api/images?${qs}`).then(r => r.json()),
-      fetch(`/api/reviews?date=${date}`).then(r => r.json()),
+      fetch(`/api/reviews?date=${dateTo}`).then(r => r.json()),
     ]);
 
     setImages(imgRes.images || []);
@@ -55,7 +67,7 @@ function ImagesPageInner() {
     }
     setKpiData(kpi);
     setLoading(false);
-  }, [channel, outlet, date]);
+  }, [channel, outlet, dateFrom, dateTo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -77,7 +89,7 @@ function ImagesPageInner() {
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: '0.5px solid rgba(0,0,0,0.08)', background: '#fff' }}>
           <div style={{ fontSize: 14, fontWeight: 500 }}>
-            {channel ? CHANNELS.find(c => c.id === channel)?.name : 'All channels'} · {outlet ? outlet.replace('-', ' ') : 'All outlets'} · {date}
+            {channel ? CHANNELS.find(c => c.id === channel)?.name : 'All channels'} · {outlet ? outlet.replace('-', ' ') : 'All outlets'} · {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
           </div>
           <div style={{ marginLeft: 'auto', fontSize: 13, color: '#9e9d99' }}>
             {loading ? 'Loading...' : `${images.length} images`}
