@@ -17,7 +17,7 @@ function PortalLayoutBody({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState('');
+  const [user, setUser] = useState(null);
 
   const outlet = searchParams.get('outlet') || '';
   const channelRaw = searchParams.get('channel');
@@ -25,7 +25,27 @@ function PortalLayoutBody({ children }) {
   const dateFrom = searchParams.get('date_from') || daysAgoStr(7);
   const dateTo = searchParams.get('date_to') || todayStr();
 
-  useEffect(() => { setUser(localStorage.getItem('flax_user') || 'Manager'); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/me')
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!cancelled && data?.user) {
+          setUser(data.user);
+          // mirror to localStorage so existing handlers (reviews API) keep working
+          try { localStorage.setItem('flax_user', data.user.name || data.user.email); } catch {}
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    try { localStorage.removeItem('flax_user'); } catch {}
+    router.push('/login');
+    router.refresh();
+  }
 
   // Update URL with merged params; null deletes a key
   function updateParams(updates) {
@@ -59,8 +79,21 @@ function PortalLayoutBody({ children }) {
       <div style={{ width: 220, background: '#fff', borderRight: '0.5px solid rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' }}>
         {/* Header */}
         <div style={{ padding: '16px 14px', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
-          <div style={{ fontSize: 16, fontWeight: 500 }}>flax <span style={{ color: '#1D9E75' }}>ops</span></div>
-          <div style={{ fontSize: 11, color: '#9e9d99', marginTop: 2 }}>Hi, {user}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 16, fontWeight: 500 }}>flax <span style={{ color: '#1D9E75' }}>ops</span></div>
+            {user && (
+              <button
+                onClick={handleLogout}
+                title="Sign out"
+                style={{ background: 'none', border: 'none', color: '#9e9d99', fontSize: 11, cursor: 'pointer', padding: 0 }}
+              >
+                Sign out
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: '#9e9d99', marginTop: 2 }} title={user?.email || ''}>
+            {user ? `Hi, ${user.name || user.email}` : 'Loading…'}
+          </div>
         </div>
 
         {/* Date range — at top */}
@@ -167,9 +200,39 @@ function PortalLayoutBody({ children }) {
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
+        <VersionBadge />
         {children}
       </div>
+    </div>
+  );
+}
+
+function VersionBadge() {
+  const version = process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0';
+  const commit = process.env.NEXT_PUBLIC_BUILD_COMMIT || 'dev';
+  const date = process.env.NEXT_PUBLIC_BUILD_DATE || '';
+  return (
+    <div
+      title={date ? `Built ${date}` : ''}
+      style={{
+        position: 'fixed',
+        top: 10,
+        right: 14,
+        zIndex: 50,
+        fontSize: 10,
+        color: '#9e9d99',
+        background: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(4px)',
+        padding: '2px 8px',
+        borderRadius: 99,
+        border: '0.5px solid rgba(0,0,0,0.08)',
+        fontVariantNumeric: 'tabular-nums',
+        pointerEvents: 'auto',
+        userSelect: 'none',
+      }}
+    >
+      v{version} · {commit}
     </div>
   );
 }
