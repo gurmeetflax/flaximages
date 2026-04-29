@@ -18,12 +18,12 @@ export default function FlaggedPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleReview({ b2_key, b2_url, channel, outlet, date, time_str, filename, status, comment }) {
+  async function handleReview(image) {
     const user = localStorage.getItem('flax_user') || 'Manager';
     await fetch('/api/reviews', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ b2_key, b2_url, channel, outlet, date, time_str, filename, status, comment, reviewed_by: user }),
+      body: JSON.stringify({ ...image, reviewed_by: user }),
     });
     load();
   }

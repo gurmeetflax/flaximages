@@ -41,14 +41,17 @@ export default function WastagePage() {
     load();
   }, []);
 
-  async function handleReview(data) {
+  async function handleReview(image) {
     const user = localStorage.getItem('flax_user') || 'Manager';
     await fetch('/api/reviews', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, reviewed_by: user }),
+      body: JSON.stringify({ ...image, reviewed_by: user }),
     });
-    setReviews(prev => ({ ...prev, [data.b2_key]: { status: data.status, comment: data.comment } }));
+    setReviews(prev => ({
+      ...prev,
+      [image.key]: { status: image.status, comment: image.comment },
+    }));
   }
 
   // Group images by outlet
