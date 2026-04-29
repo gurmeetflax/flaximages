@@ -30,10 +30,21 @@ export default function ImageCard({ image, review, onReview, onClick }) {
       <div onClick={() => onClick?.(image)} style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', background: '#f4f3f0', position: 'relative' }}>
         {image.url ? (
           <img
-            src={image.url}
+            src={image.thumb || image.url}
             alt={`${image.outlet} ${image.channel}`}
+            loading="lazy"
+            decoding="async"
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+            onError={e => {
+              // If the CF-resized thumb 404s (e.g. Image Transformations not enabled),
+              // fall back to the full-size signed URL once.
+              if (image.thumb && e.target.src !== image.url) {
+                e.target.src = image.url;
+                return;
+              }
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
           />
         ) : null}
         <div style={{ width: '100%', height: '100%', display: image.url ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: '#9e9d99' }}>
